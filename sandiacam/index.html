@@ -1,0 +1,106 @@
+<!doctype html>
+<style>
+canvas {
+  position: fixed;
+  left: 30px;
+  top: 30px;
+  width: calc(100vw - 60px);
+  height: calc(100vh - 60px);
+  background: black;
+  box-shadow: 0 30px 32px -8px #0008;
+}
+</style>
+<canvas id="portrait"></canvas>
+<script>
+
+var text = `This place is a message... and part of a system of messages... pay attention to it!
+Sending this message was important to us. We considered ourselves to be a powerful culture.
+This place is not a place of honor... no highly esteemed deed is commemorated here... nothing valued is here.
+What is here was dangerous and repulsive to us. This message is a warning about danger.
+The danger is in a particular location... it increases towards a center... the center of danger is here... of a particular size and shape, and below us.
+The danger is still present, in your time, as it was in ours.
+The danger is to the body, and it can kill.
+The form of the danger is an emanation of energy.
+The danger is unleashed only if you substantially disturb this place physically. This place is best shunned and left uninhabited.`
+var letters = (text + "\n" + text).replace(/\n/g, " ").split("");
+
+var canvas = window.portrait;
+var context = canvas.getContext("2d");
+
+var offscreen = document.createElement("canvas");
+var buffer = offscreen.getContext("2d");
+
+// document.body.appendChild(offscreen);
+
+var lineWidth = 65;
+var lines = letters.length / lineWidth;
+
+var render = function() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  var lw = lineWidth;
+  var lh = lines;
+  if (canvas.height > canvas.width) {
+    lw = lines;
+    lh = lineWidth;
+  }
+  var letterWidth = canvas.width / lw;
+  var half = letterWidth / 2;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  var texture = buffer.getImageData(0, 0, offscreen.width, offscreen.height);
+  for (var i = 0; i < letters.length; i++) {
+    var letter = letters[i];
+    var row = Math.floor(i / lw);
+    var column = i % lw;
+    var nx = column / lw;
+    var ny = row / lines;
+    var bx = Math.floor(nx * offscreen.width);
+    var by = Math.floor(ny * offscreen.height);
+    var offset = (by * offscreen.width + bx) * 4;
+    var [r, g, b] = texture.data.slice(offset, offset + 3);
+    var average = (r + g + b) / (3 * 255);
+    var jitter = Math.random() * .4 - .2;
+    var shaping = (.4 + (average * .6)) * 2;
+    var x = canvas.width * nx;
+    var y = canvas.height * ny;
+    context.fillStyle = `rgba(255, 255, 255, ${average})`;
+    context.font = `bold ${letterWidth * shaping}px impact`;
+    context.fillText(letter, x + half, y + half, letterWidth);
+  }
+  requestAnimationFrame(render);
+}
+
+var init = async function() {
+  var streaming = false;
+  var img = new Image();
+  img.src = "./mugshot.jpg";
+  img.onload = function() {
+    if (streaming) return;
+    console.log("rendering from image");
+    offscreen.width = img.naturalWidth;
+    offscreen.height = img.naturalHeight;
+    buffer.drawImage(img, 0, 0);
+  }
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  } catch (err) {
+    render();
+    return console.log("unable to get camera feed");
+  }
+  var video = document.createElement("video");
+  video.srcObject = stream;
+  video.play();
+  var update = function() {
+    offscreen.width = video.videoWidth;
+    offscreen.height = video.videoHeight;
+    buffer.drawImage(video, 0, 0, offscreen.width, offscreen.height);
+    requestAnimationFrame(update);
+  }
+  video.onplaying = update;
+  render();
+}
+
+init();
+
+</script>
