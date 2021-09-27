@@ -6,7 +6,7 @@ canvas {
   top: 30px;
   width: calc(100vw - 60px);
   height: calc(100vh - 60px);
-  background: black;
+  background: white;
   box-shadow: 0 30px 32px -8px #0008;
 }
 </style>
@@ -22,7 +22,7 @@ The danger is still present, in your time, as it was in ours.
 The danger is to the body, and it can kill.
 The form of the danger is an emanation of energy.
 The danger is unleashed only if you substantially disturb this place physically. This place is best shunned and left uninhabited.`
-var letters = (text + "\n" + text).replace(/\n/g, " ").split("");
+var letters = (text + "\n" + text).toUpperCase().replace(/\n/g, " ").split("");
 
 var canvas = window.portrait;
 var context = canvas.getContext("2d");
@@ -35,7 +35,7 @@ var buffer = offscreen.getContext("2d");
 var lineWidth = 65;
 var lines = letters.length / lineWidth;
 
-var render = function() {
+var render = function(t) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
   var lw = lineWidth;
@@ -60,11 +60,10 @@ var render = function() {
     var offset = (by * offscreen.width + bx) * 4;
     var [r, g, b] = texture.data.slice(offset, offset + 3);
     var average = (r + g + b) / (3 * 255);
-    var jitter = Math.random() * .4 - .2;
     var shaping = (.4 + (average * .6)) * 2;
     var x = canvas.width * nx;
     var y = canvas.height * ny;
-    context.fillStyle = `rgba(255, 255, 255, ${average})`;
+    context.fillStyle = `rgba(0, 0, 0, ${average})`;
     context.font = `bold ${letterWidth * shaping}px impact`;
     context.fillText(letter, x + half, y + half, letterWidth);
   }
@@ -73,27 +72,27 @@ var render = function() {
 
 var init = async function() {
   var streaming = false;
-  var img = new Image();
-  img.src = "./mugshot.jpg";
-  img.onload = function() {
-    if (streaming) return;
-    console.log("rendering from image");
-    offscreen.width = img.naturalWidth;
-    offscreen.height = img.naturalHeight;
-    buffer.drawImage(img, 0, 0);
-  }
   try {
     var stream = await navigator.mediaDevices.getUserMedia({ video: true });
   } catch (err) {
-    render();
+    var img = new Image();
+    img.src = "./mugshot.jpg";
+    img.onload = function() {
+      if (streaming) return;
+      offscreen.width = img.naturalWidth;
+      offscreen.height = img.naturalHeight;
+      buffer.drawImage(img, 0, 0);
+      render();
+    }
     return console.log("unable to get camera feed");
   }
   var video = document.createElement("video");
   video.srcObject = stream;
   video.play();
   var update = function() {
-    offscreen.width = video.videoWidth;
-    offscreen.height = video.videoHeight;
+    if (offscreen.width != video.videoWidth) offscreen.width = video.videoWidth;
+    if (offscreen.height != video.videoHeight) offscreen.height = video.videoHeight;
+    buffer.globalAlpha = .1;
     buffer.drawImage(video, 0, 0, offscreen.width, offscreen.height);
     requestAnimationFrame(update);
   }
