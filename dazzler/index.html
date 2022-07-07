@@ -45,7 +45,7 @@ var m = (t, p = {}) => {
 
 var at = data => m("animateTransform", {
   fill: "freeze",
-  dur: ".75s",
+  dur: "750ms",
   attributeName: "patternTransform",
   ...data
 });
@@ -77,19 +77,19 @@ for (var i = 0; i < length / 2; i++) {
   var rotation = at({
     type: "rotate",
     values: `0; ${Math.random() * 180 - 90}`,
-    begin: (index * .5) + "s",
+    begin: (index * 500) + "ms",
     fill: "freeze"
   });
   var translation = at({
     type: "translate",
     values: `0 0; ${Math.random() * 10 - 5} ${Math.random() * 10 - 5}`,
-    begin: (index * .5) + "s",
+    begin: (index * 500) + "ms",
     additive: "sum"
   });
   var scale = at({
     type: "scale",
     values: `1; ${Math.random() + .5}`,
-    begin: (index * .5) + "s",
+    begin: (index * 500) + "ms",
     additive: "sum"
   });
   patternClone.append(rotation, translation, scale);
