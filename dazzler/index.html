@@ -43,11 +43,20 @@ var m = (t, p = {}) => {
   return tag;
 };
 
+var at = data => m("animateTransform", {
+  fill: "freeze",
+  dur: ".75s",
+  attributeName: "patternTransform",
+  ...data
+});
+
 var max = rect.getTotalLength()
 var splitPoints = [0, max / 4, max / 2, max / 4 * 3, max];
-var fractures = Math.round(Math.random() * 3) + 3;
-for (var i = 0; i < fractures - 1; i++) {
-  splitPoints.push(Math.random() * max, Math.random() * max);
+var fractures = Math.round(Math.random() * 3) + 2;
+var acc = 0;
+for (var i = 0; i < fractures * 2; i++) {
+  acc += Math.random() * max / 16 + max / 16;
+  splitPoints.push(acc);
 }
 splitPoints.sort((a, b) => a - b);
 splitPoints = splitPoints
@@ -65,30 +74,22 @@ for (var i = 0; i < length / 2; i++) {
   var id = `stripe-clone-${i}`;
   patternClone.setAttribute("id", id);
   defs.append(patternClone);
-  var rotation = m("animateTransform", {
-    attributeName: "patternTransform",
+  var rotation = at({
     type: "rotate",
     values: `0; ${Math.random() * 180 - 90}`,
-    begin: index + "s",
-    dur: "1s",
+    begin: (index * .5) + "s",
     fill: "freeze"
   });
-  var translation = m("animateTransform", {
-    attributeName: "patternTransform",
+  var translation = at({
     type: "translate",
     values: `0 0; ${Math.random() * 10 - 5} ${Math.random() * 10 - 5}`,
-    begin: index + "s",
-    dur: "1s",
-    fill: "freeze",
+    begin: (index * .5) + "s",
     additive: "sum"
   });
-  var scale = m("animateTransform", {
-    attributeName: "patternTransform",
+  var scale = at({
     type: "scale",
     values: `1; ${Math.random() + .5}`,
-    begin: index + "s",
-    dur: "1s",
-    fill: "freeze",
+    begin: (index * .5) + "s",
     additive: "sum"
   });
   patternClone.append(rotation, translation, scale);
