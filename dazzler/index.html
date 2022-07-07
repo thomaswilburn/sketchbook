@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Dazzler</title>
+  <style>
+svg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+  </style>
+</head>
+<body>
+  <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <pattern id="stripe-original" viewBox="0 0 3 3" patternUnits="userSpaceOnUse" width="10%" height="10%" transform-origin="center">
+        <rect width=3 height=3 fill="white" />
+        <line x1=0 y1=0 x2=3 y2=3 stroke="black" />
+        <line x1="-1" x2=1 y1=2 y2=4 stroke="black" />
+        <line x1=2 x2=4 y1="-1" y2=1 stroke="black" />
+      </pattern>
+    </defs>
+    <rect width=100 height=100 id="viewport" fill="none" />
+    <circle cx=50 cy=50 r=20 fill="url(#stripe-original)" />
+  </svg>
+  <script>
+var svg = document.querySelector("svg");
+var ns = svg.namespaceURI;
+var defs = document.querySelector("svg defs");
+
+var rect = document.querySelector("#viewport");
+var pattern = document.querySelector("#stripe-original");
+
+var m = (t, p = {}) => {
+  var tag = document.createElementNS(ns, t);
+  for (var k in p) {
+    tag.setAttribute(k, p[k]);
+  }
+  return tag;
+};
+
+var max = rect.getTotalLength()
+var splitPoints = [0, max / 4, max / 2, max / 4 * 3, max];
+var fractures = Math.round(Math.random() * 3) + 3;
+for (var i = 0; i < fractures - 1; i++) {
+  splitPoints.push(Math.random() * max, Math.random() * max);
+}
+splitPoints.sort((a, b) => a - b);
+splitPoints = splitPoints
+  .filter((p, i, a) => Math.round(p) != Math.round(a[i + 1]))
+  .map(p => rect.getPointAtLength(p));
+
+var g = m("g");
+svg.append(g);
+var length = splitPoints.length;
+var index = 0;
+for (var i = 0; i < length / 2; i++) {
+  var points = [splitPoints[i], splitPoints[i + 1], splitPoints[length - i - 2], splitPoints[length - i - 1]];
+  var d = points.map((p, n) => `${n ? "L" : "M"}${p.x}, ${p.y}`).join(" ");
+  var patternClone = pattern.cloneNode(true);
+  var id = `stripe-clone-${i}`;
+  patternClone.setAttribute("id", id);
+  defs.append(patternClone);
+  var rotation = m("animateTransform", {
+    attributeName: "patternTransform",
+    type: "rotate",
+    values: `0; ${Math.random() * 180 - 90}`,
+    begin: index + "s",
+    dur: "1s",
+    fill: "freeze"
+  });
+  var translation = m("animateTransform", {
+    attributeName: "patternTransform",
+    type: "translate",
+    values: `0 0; ${Math.random() * 10 - 5} ${Math.random() * 10 - 5}`,
+    begin: index + "s",
+    dur: "1s",
+    fill: "freeze",
+    additive: "sum"
+  });
+  var scale = m("animateTransform", {
+    attributeName: "patternTransform",
+    type: "scale",
+    values: `1; ${Math.random() + .5}`,
+    begin: index + "s",
+    dur: "1s",
+    fill: "freeze",
+    additive: "sum"
+  });
+  patternClone.append(rotation, translation, scale);
+  var path = m("path", { d, fill: `url(#${id})` });
+  g.append(path);
+  var { width, height } = path.getBBox();
+  if (!height || !width) {
+    path.remove();
+    patternClone.remove();
+  } else {
+    index++;
+  }
+}
+
+
+/*
+- starting with the base rect, decide on a number of fractures
+- generate 2n random values in a range of 0-400, add 0 and 400, and sort
+- use getPointAtLength() for each value on the rectangle to generate slice pairs
+- step through the slice pairs and create fracture paths for each
+- apply a cloned pattern to each fracture
+- step through the fractures and animate them in sequence
+
+- on random chance, add either a big arc or dots
+- animate the sweep of the arc or the radius of the dots
+*/
+
+  </script>
+</body>
+</html>
