@@ -11,11 +11,17 @@ svg {
   left: 0;
   width: 100%;
   height: 100%;
+  transition: opacity .8s linear;
 }
+
+svg.fade {
+  opacity: 0;
+}
+
   </style>
 </head>
 <body>
-  <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+  <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" class="fade">
     <defs>
       <pattern id="stripe-original" viewBox="0 0 3 3" patternUnits="userSpaceOnUse" width="10%" height="10%" transform-origin="center">
         <rect width=3 height=3 fill="white" />
@@ -25,7 +31,6 @@ svg {
       </pattern>
     </defs>
     <rect width=100 height=100 id="viewport" fill="none" />
-    <circle cx=50 cy=50 r=20 fill="url(#stripe-original)" />
   </svg>
   <script>
 var svg = document.querySelector("svg");
@@ -43,78 +48,129 @@ var m = (t, p = {}) => {
   return tag;
 };
 
-var at = data => m("animateTransform", {
+var start = Date.now();
+var at = (data, offset = 0) => m("animateTransform", {
   fill: "freeze",
+  begin: (Date.now() - start + offset) + "ms",
   dur: "750ms",
   attributeName: "patternTransform",
+  calcMode: "spline",
+  keySplines: "0.5 0 0.5 1.0",
+  additive: "sum",
   ...data
 });
 
-var max = rect.getTotalLength()
-var splitPoints = [0, max / 4, max / 2, max / 4 * 3, max];
-var fractures = Math.round(Math.random() * 3) + 2;
-var acc = 0;
-for (var i = 0; i < fractures * 2; i++) {
-  acc += Math.random() * max / 16 + max / 16;
-  splitPoints.push(acc);
-}
-splitPoints.sort((a, b) => a - b);
-splitPoints = splitPoints
-  .filter((p, i, a) => Math.round(p) != Math.round(a[i + 1]))
-  .map(p => rect.getPointAtLength(p));
+var raf = () => new Promise(requestAnimationFrame);
+var wait = (delay = 1000) => new Promise(ok => setTimeout(ok, delay));
 
-var g = m("g");
-svg.append(g);
-var length = splitPoints.length;
-var index = 0;
-for (var i = 0; i < length / 2; i++) {
-  var points = [splitPoints[i], splitPoints[i + 1], splitPoints[length - i - 2], splitPoints[length - i - 1]];
-  var d = points.map((p, n) => `${n ? "L" : "M"}${p.x}, ${p.y}`).join(" ");
-  var patternClone = pattern.cloneNode(true);
-  var id = `stripe-clone-${i}`;
-  patternClone.setAttribute("id", id);
-  defs.append(patternClone);
-  var rotation = at({
-    type: "rotate",
-    values: `0; ${Math.random() * 180 - 90}`,
-    begin: (index * 500) + "ms"
-  });
-  var translation = at({
-    type: "translate",
-    values: `0 0; ${Math.random() * 10 - 5} ${Math.random() * 10 - 5}`,
-    begin: (index * 500) + "ms",
-    additive: "sum"
-  });
-  var scale = at({
-    type: "scale",
-    values: `1; ${Math.random() + .5}`,
-    begin: (index * 500) + "ms",
-    additive: "sum"
-  });
-  patternClone.append(rotation, translation, scale);
-  var path = m("path", { d, fill: `url(#${id})` });
-  g.append(path);
-  var { width, height } = path.getBBox();
-  if (!height || !width) {
-    path.remove();
-    patternClone.remove();
+var guid = 0;
+
+async function dazzle() {
+
+  var removal = document.querySelectorAll(".container, .pattern-clone, #layer-pattern");
+  for (var r of removal) r.remove();
+
+  await raf();
+
+  var max = rect.getTotalLength()
+  var splitPoints = [0, max / 4, max / 2, max / 4 * 3, max];
+  var fractures = Math.round(Math.random() * 3) + 2;
+  var acc = 0;
+  for (var i = 0; i < fractures * 2; i++) {
+    acc += Math.random() * max / 16 + max / 16;
+    splitPoints.push(acc);
+  }
+  splitPoints.sort((a, b) => a - b);
+  splitPoints = splitPoints
+    .filter((p, i, a) => Math.round(p) != Math.round(a[i + 1]))
+    .map(p => rect.getPointAtLength(p));
+
+  var g = m("g", { class: "container" });
+  svg.append(g);
+
+  // generate the paths from split points
+  var length = splitPoints.length;
+  for (var i = 0; i < length / 2; i++) {
+    var points = [splitPoints[i], splitPoints[i + 1], splitPoints[length - i - 2], splitPoints[length - i - 1]];
+    var d = points.map((p, n) => `${n ? "L" : "M"}${p.x}, ${p.y}`).join(" ");
+    var id = `stripe-clone-${guid++}`;
+    var path = m("path", { d, fill: `url(#${id})` });
+    g.append(path);
+    var { width, height } = path.getBBox();
+    if (!height || !width) {
+      path.remove();
+      continue;
+    }
+
+    var patternClone = pattern.cloneNode(true);
+    patternClone.setAttribute("class", "pattern-clone");
+    patternClone.setAttribute("id", id);
+    defs.append(patternClone);
+    var rotation = at({ type: "rotate", values: `0; ${Math.random() * 180 - 90}`, }, i * 500);
+    var translation = at({ type: "translate", values: `0 0; ${Math.random() * 10 - 5} ${Math.random() * 10 - 5}` }, i * 500);
+    var scale = at({ type: "scale", values: `1; ${Math.random() + .5}` }, i * 500);
+    patternClone.append(rotation, translation, scale);
+    
+  }
+
+  // add dots or arcs
+  var radial = Math.random() > .5;
+  var layerPattern;
+  if (radial) {
+    layerPattern = m("pattern", {
+      class: "radial-pattern",
+      id: "layer-pattern",
+      viewBox: "0 0 100 100",
+      width: "100%",
+      height: "100%",
+      patternUnits: "userSpaceOnUse"
+    });
+    layerPattern.append(m("rect", { width: 100, height: 100, fill: "white" }));
+    var cx = Math.random() * 120 - 10;
+    var cy = Math.random() * 120 - 10;
+    for (var i = 0; i < 15; i++) {
+      layerPattern.append(m("circle", {
+        cx, cy, r: i * 10 + 1,
+        "stroke-width": 5,
+        stroke: "black",
+        fill: "none"
+      }));
+    }
   } else {
-    index++;
+    layerPattern = pattern.cloneNode(true);
+    layerPattern.setAttribute("id", "layer-pattern");
+  }
+  defs.append(layerPattern);
+
+  for (var i = 0; i < (Math.random() * 4 + 1) | 0; i++) {
+    var circle = m("circle", {
+      cx: Math.random() * 90 + 5,
+      cy: Math.random() * 90 + 5,
+      r: radial ? 0 : Math.random() * ((5 - i) * 5) + 5,
+      fill: `url(#layer-pattern)`
+    });
+    g.append(circle);
+    if (radial) circle.append(m("animate", {
+      begin: (Date.now() - start + length * 250 + i * 250) + "ms",
+      attributeName: "r",
+      from: 0,
+      to: Math.random() * 10 + 10,
+      dur: "1s",
+      fill: "freeze"
+    }));
   }
 }
 
+async function tick() {
+  await dazzle();
+  svg.classList.remove("fade");
+  await wait(10 * 1000);
+  svg.classList.add("fade");
+  await wait(1000);
+  tick();
+}
 
-/*
-- starting with the base rect, decide on a number of fractures
-- generate 2n random values in a range of 0-400, add 0 and 400, and sort
-- use getPointAtLength() for each value on the rectangle to generate slice pairs
-- step through the slice pairs and create fracture paths for each
-- apply a cloned pattern to each fracture
-- step through the fractures and animate them in sequence
-
-- on random chance, add either a big arc or dots
-- animate the sweep of the arc or the radius of the dots
-*/
+tick();
 
   </script>
 </body>
